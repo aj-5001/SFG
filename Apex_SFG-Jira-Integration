@@ -1,0 +1,121 @@
+global class caseEmailClass {
+public Opportunity m_opt { get; private set; }
+public List<Opportunity_Buy__c> selllineList { get; private set; }
+Public Boolean PBFlag{get;set;}
+public String recordId; 
+public String accountName;
+Public User u;
+public String link = 'https://test.com';
+public caseEmailClass(ApexPages.StandardController stdController)
+{
+   
+     final ApexPages.StandardController m_stdController; 
+
+    
+    //public Slack_ChannelUserSelectController(ApexPages.StandardController stdController)
+
+     recordId = System.currentPageReference().getParameters().get('ID'); 
+     
+     
+   
+     m_stdController = stdController;
+        try
+          {
+              m_opt = (Opportunity)m_stdController.getRecord();
+              m_opt = [select Id,Brand__c,Jira_Key__c,CurrencyIsoCode,Biz_Analyst__c,Opportunity_Number__c,Gross_Budget__c,Account.Name, Name from Opportunity where Id =: recordId];         
+              selllineList = [select Id, Planned_Payable_Impressions__c from Opportunity_Buy__c where opportunity__c =: recordId];
+              
+              
+                        
+          }
+          
+          
+        
+          catch( exception e )
+          {
+            ApexPages.addMessage( new ApexPages.Message(ApexPages.Severity.ERROR, 'Error of geting parent ' + e) );
+              return;
+          }
+}
+
+    public PageReference makeCallout (){
+        
+    
+    
+    //@future(callout=true)
+        u = [select Id, Name from User where User.Id=:m_opt.Biz_Analyst__c];
+      
+        PBFlag = true; // make ticket submitted visable
+        system.debug('test during first callout---------------' + m_opt.Biz_Analyst__c);
+        system.debug('checking what sell lines object looks like at place 1---------------' + u.Name);
+        
+        HttpRequest request = new HttpRequest();
+        request.setMethod('POST');
+        
+        String userpassStr = 'patrick.wang@xaxis.com:XG1SkjcR7fYR1eYNlo7D72C7';//jira email + jira api token
+        Blob userpassBlob = Blob.valueOf(userpassStr);
+        
+        string encodedStr = EncodingUtil.base64Encode(userpassBlob);
+        //String authorizationHeader = 'Basic ' + 'YWxlYy5qYXNhbm92c2t5QHhheGlzLmNvbTpHb2Rpc25vdGdyZWF0MSEhMQ==';  // Alec
+        //String authorizationHeader = 'Basic ' + 'cGF0cmljay53YW5nQHhheGlzLmNvbTpYRzFTa2pjUjdmWVIxZVlObG83RDcyQzc=';// Patrick
+        String authorizationHeader = 'Basic ' + 'YWxlYy5qYXNhbm92c2t5QHhheGlzLmNvbTpHb2Rpc25vdGdyZWF0MSEhMQ==';
+        
+        request.setHeader('Authorization', authorizationHeader);
+        request.setHeader('Content-Type','application/json');
+        
+        
+        String endpoint = 'https://dev-envir.atlassian.net/rest/api/2/issue';       
+        
+        request.setBody('{"fields": {"project":{"key": "SAL"},"summary":" ' + m_opt.Name + ' ","customfield_10051":" ' + m_opt.Opportunity_Number__c + ' ","customfield_10055":" ' + u.Name + ' ","customfield_10049":" ' + m_opt.Brand__c + ' ","customfield_10063":" ' + selllineList + ' ","customfield_10048":" ' + m_opt.Account.Name + ' ","customfield_10052":" ' + m_opt.Gross_Budget__c + ' ","description": "test","issuetype": {"name": "Bug"}}}');
+        
+        
+        request.setEndPoint(endpoint);
+       
+       // corresponding jira key 
+       String jiraKey = '';
+       
+       
+       if (m_opt.Jira_Key__c == null){
+        // Send the HTTP request and get the response.
+        HttpResponse response = new HTTP().send(request);
+        // Parse the JSON response
+        if (response.getStatusCode() != 201) {
+            System.debug('The status code returned was not expected: ' + response.getStatusCode() + ' ' + response.getStatus());
+        } else {
+            System.debug('------response is ' + response.getBody());
+            JSONParser parser = JSON.createParser(response.getBody());
+            
+          
+             
+                while (parser.nextToken() != null) {
+                    if (parser.getCurrentName() == 'key'){
+                        jiraKey = parser.getText();
+                        m_opt.Jira_Key__c = jiraKey;
+                        update m_opt;
+                
+                }
+            }
+            
+        }
+
+       } else{// end of checking for already existing ticket
+       // runs if jira key already exists, updates the ticket
+           jiraKey = m_opt.Jira_Key__c;   
+           
+           request.setMethod('PUT');
+             
+        
+           
+           endpoint = 'https://dev-envir.atlassian.net/rest/api/2/issue/' + jiraKey;       
+        
+           
+           request.setBody('{"fields": { "summary":" ' + m_opt.Name + ' ","customfield_10064":{"value": "Yes"},"customfield_10070":{"name": "admin"},"customfield_10061":" ' + link + ' ","customfield_10060":" ' + link + ' ","customfield_10059":" ' + link + ' ","customfield_10058":" ' + link + ' ","customfield_10055":" ' + u.Name + ' ","customfield_10051":" ' + m_opt.Opportunity_Number__c + ' ","customfield_10063":" ' + selllineList + ' ","customfield_10052":" ' + m_opt.CurrencyIsoCode + m_opt.Gross_Budget__c + ' ","customfield_10049":" ' + m_opt.Brand__c + ' ","customfield_10048":" ' + m_opt.Account.Name + ' "}}');
+           request.setEndPoint(endpoint);
+           HttpResponse response = new HTTP().send(request);
+           System.debug('------------------- update ticket response-------------' + response.getBody());
+       }     
+         return null;   
+        } // end of method
+        
+        
+            }
