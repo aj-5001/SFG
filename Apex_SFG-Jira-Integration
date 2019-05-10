@@ -15,9 +15,7 @@ public caseEmailClass(ApexPages.StandardController stdController)
     //public Slack_ChannelUserSelectController(ApexPages.StandardController stdController)
 
      recordId = System.currentPageReference().getParameters().get('ID'); 
-     
-     
-   
+    
      m_stdController = stdController;
         try
           {
