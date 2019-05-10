@@ -1,0 +1,21 @@
+<apex:page standardcontroller="Opportunity" extensions="caseEmailClass">
+
+<apex:form >
+  
+<apex:pageBlock > 
+
+Select the Button to submit this Opportunity into Jira at xaxistech.atlassian.net <br></br>
+
+<apex:commandButton action="{!makeCallout}" value="Submit To jira" id="btnUserSearch"/>
+<apex:commandButton action="null" value="Pull from Jira" id="pullJira"/>
+ 
+
+
+<apex:pageBlockSection id="pageBlock" rendered="{!PBFlag}">
+
+<br> Ticket Submitted </br>
+
+</apex:pageBlockSection>
+</apex:pageBlock>
+</apex:form>
+</apex:page>
